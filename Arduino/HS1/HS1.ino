@@ -217,7 +217,9 @@ SnoozeBlock config_teensy32(snooze_audio, alarm);
 
 // The file where data is recorded
 File frec;
-SdFat sd;
+//SdFat sd;
+SdFatSdioEX sd; //SdFatSdioEX uses extended multi-block transfers without DMA.
+// get ~18MB/sec even with short 512 byte writes
 float recDays;
 
 typedef struct {
@@ -269,7 +271,7 @@ void setup() {
   // Initialize the SD card
   SPI.setMOSI(7);
   SPI.setSCK(14);
-  if (!(sd.begin(10))) {
+  if (!(sd.begin())) {
     // stop here if no SD card, but print a message
     Serial.println("Unable to access the SD card");
     cDisplay();
@@ -284,6 +286,9 @@ void setup() {
     }
     delay(400);    
   }
+  // make sd the current volume.
+    sd.chvol();  
+    
   readEEPROM();  // read settings stored in EEPROM
   LoadScript();
   writeEEPROM(); // update settings changed from script
