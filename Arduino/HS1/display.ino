@@ -18,14 +18,9 @@ void cDisplay(){
   displayBattery();
   display.setTextColor(WHITE);
   display.setTextSize(1);
-  display.setCursor(30,displayLine1);
+  display.setCursor(30,displayLine3);
   display.print((int) recDays);
   display.print("d");
-  display.setCursor(55,displayLine1);
-
-//  display.print("I:");
-//  display.print(sigStrength);
-
   
   display.setCursor(0,0);
 }
@@ -96,19 +91,6 @@ void printZero(int val){
 //  if(val<10) display.print('0');
 //}
 
-void setTeensyTime(int hr, int mn, int sc, int dy, int mh, int yr){
-  tmElements_t tm;
-  tm.Year = yr - 1970;
-  tm.Month = mh;
-  tm.Day = dy;
-  tm.Hour = hr;
-  tm.Minute = mn;
-  tm.Second = sc;
-  time_t newtime;
-  newtime = makeTime(tm); 
-  Teensy3Clock.set(newtime); 
-}
- 
 void printTime(time_t t){
   Serial.print(year(t));
   Serial.print('-');
@@ -133,7 +115,7 @@ void readEEPROM(){
   if(rec_dur>3600) rec_dur = 3600;
   if(rec_int<30) rec_int = 570;
   if(rec_int>3600*24) rec_int = 60;
-  if(isf<0 | isf>5) isf=4;
+  if(isf<0 | isf>SAMP_FREQS) isf=4;
   if(gainSetting<0 | gainSetting>13) gainSetting = 4;
 }
 

@@ -33,7 +33,6 @@
 //
 
 static boolean printDiags = 1;  // 1: serial print diagnostics; 0: no diagnostics 2=verbose
-#define I_SAMP 6   // 0 is 8 kHz; 1 is 16 kHz; 2 is 32 kHz; 3 is 44.1 kHz; 4 is 48 kHz; 5 is 96 kHz; 6 is 192 kHz
 boolean imuFlag = 1;
 boolean whistleFlag = 1;  // =1 to run whistle detector
 int moduloSeconds = 10; // round to nearest start time
@@ -54,9 +53,9 @@ int bandHigh[NBANDS]= {2,3,4,5,6,7,9,11,14,18,23,29,36,46,58,73,92,116,146,184,2
 //
 
 //
-// EEPROM SETTINGS -- THESE ONLY TAKE EFFECT FOR NEW MEDUSA
+// EEPROM SETTINGS -- THESE ONLY TAKE EFFECT FOR NEW HS1
 //
-int isf = 2; // index sampling frequency
+int isf = 7; // index sampling frequency
 long rec_dur = 30; // seconds
 long rec_int = 300 - rec_dur;  // seconds
 int gainSetting = 4; // SG in script file
@@ -80,9 +79,9 @@ const int vSense = 16;
 #define OLED_RESET -1
 
 #define displayLine1 0
-#define displayLine2 9
-#define displayLine3 18
-#define displayLine4 27
+#define displayLine2 18
+#define displayLine3 36
+#define displayLine4 54
 Adafruit_FeatherOLED display = Adafruit_FeatherOLED();
 #define BOTTOM 25
 
@@ -99,13 +98,13 @@ unsigned long baud = 115200;
     
     // GUItool: begin automatically generated code
     AudioInputI2S            i2s2;           //xy=262,190
-    AudioAnalyzeFFT1024       FFT1;       //xy=518,130
-    AudioAnalyzeFFT1024       FFT2;       //xy=518,130
+  //  AudioAnalyzeFFT1024       FFT1;       //xy=518,130
+  //  AudioAnalyzeFFT1024       FFT2;       //xy=518,130
     LHIRecordQueue           queue1;         //xy=281,63
     LHIRecordQueue           queue2;         //xy=281,63
-    AudioConnection          patchCord1(i2s2, 0, FFT1, 0);
+   // AudioConnection          patchCord1(i2s2, 0, FFT1, 0);
     AudioConnection          patchCord2(i2s2, 0, queue1, 0);
-    AudioConnection          patchCord3(i2s2, 1, FFT2, 0);
+   // AudioConnection          patchCord3(i2s2, 1, FFT2, 0);
     AudioConnection          patchCord4(i2s2, 1, queue2, 0);
     AudioControlSGTL5000     sgtl5000_1;     //xy=265,212
     // GUItool: end automatically generated code
@@ -117,13 +116,13 @@ unsigned long baud = 115200;
     #define FFT1 fft256_1
     #define FFT2 fft256_2
     AudioInputI2S            i2s2;           //xy=262,190
-    AudioAnalyzeFFT256       fft256_1;       //xy=518,130
-    AudioAnalyzeFFT256       fft256_2;       //xy=518,130
+  //  AudioAnalyzeFFT256       fft256_1;       //xy=518,130
+  //  AudioAnalyzeFFT256       fft256_2;       //xy=518,130
     LHIRecordQueue           queue1;         //xy=281,63
     LHIRecordQueue           queue2;         //xy=281,63
-    AudioConnection          patchCord1(i2s2, 0, FFT1, 0);
+   // AudioConnection          patchCord1(i2s2, 0, FFT1, 0);
     AudioConnection          patchCord2(i2s2, 0, queue1, 0);
-    AudioConnection          patchCord3(i2s2, 1, FFT2, 0);
+  //  AudioConnection          patchCord3(i2s2, 1, FFT2, 0);
     AudioConnection          patchCord4(i2s2, 1, queue2, 0);
     AudioControlSGTL5000     sgtl5000_1;     //xy=265,212
     // GUItool: end automatically generated code
@@ -137,9 +136,9 @@ unsigned long baud = 115200;
     #define FFT1 fft1024_1
     // GUItool: begin automatically generated code
     AudioInputI2S            i2s2;           //xy=262,190
-    AudioAnalyzeFFT1024       FFT1;       //xy=518,130
+  //  AudioAnalyzeFFT1024       FFT1;       //xy=518,130
     LHIRecordQueue           queue1;         //xy=281,63
-    AudioConnection          patchCord1(i2s2, 0, FFT1, 0);
+  //  AudioConnection          patchCord1(i2s2, 0, FFT1, 0);
     AudioConnection          patchCord2(i2s2, 0, queue1, 0);
     AudioControlSGTL5000     sgtl5000_1;     //xy=265,212
     // GUItool: end automatically generated code
@@ -150,9 +149,9 @@ unsigned long baud = 115200;
     // GUItool: begin automatically generated code
     #define FFT1 fft256_1
     AudioInputI2S            i2s2;           //xy=262,190
-    AudioAnalyzeFFT256       FFT1;       //xy=518,130
+ //   AudioAnalyzeFFT256       FFT1;       //xy=518,130
     LHIRecordQueue           queue1;         //xy=281,63
-    AudioConnection          patchCord1(i2s2, 0, FFT1, 0);
+  //  AudioConnection          patchCord1(i2s2, 0, FFT1, 0);
     AudioConnection          patchCord2(i2s2, 0, queue1, 0);
     AudioControlSGTL5000     sgtl5000_1;     //xy=265,212
     // GUItool: end automatically generated code
@@ -185,7 +184,7 @@ int mode = 0;  // 0=stopped, 1=recording audio, 2=recprding sensors
 time_t startTime;
 time_t stopTime;
 time_t t;
-
+time_t autoStartTime;
 
 boolean audioFlag = 1;
 volatile boolean LEDSON = 1;
@@ -194,7 +193,8 @@ boolean introPeriod=1;  //flag for introductory period; used for keeping LED on 
 int update_rate = 10;  // rate (Hz) at which interrupt to read sensors
 float imu_srate = 10.0;
 
-int32_t lhi_fsamps[7] = {8000, 16000, 32000, 44100, 48000, 96000, 192000};
+#define SAMP_FREQS 10
+int32_t lhi_fsamps[SAMP_FREQS] = {8000, 16000, 32000, 44100, 48000, 96000, 192000, 240000, 320000, 400000};
 float audio_srate;
 
 int wakeahead = 5;
@@ -205,6 +205,14 @@ volatile long buf_count;
 float total_hour_recorded = 0.0;
 long nbufs_per_file;
 boolean settingsChanged = 0;
+
+byte startHour, startMinute, endHour, endMinute; //used in Diel mode
+
+#define MODE_NORMAL 0
+#define MODE_DIEL 1
+int recMode = MODE_NORMAL;
+
+int nBatPacks = 8;
 
 long file_count;
 char filename[25];
@@ -289,11 +297,7 @@ void setup() {
   // make sd the current volume.
     sd.chvol();  
     
-  readEEPROM();  // read settings stored in EEPROM
-  LoadScript();
-  writeEEPROM(); // update settings changed from script
-  updatePowerDuration();
-
+  manualSettings();
   logFileHeader();
 
   digitalWrite(hydroPowPin, HIGH);
