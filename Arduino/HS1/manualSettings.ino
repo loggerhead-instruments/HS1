@@ -22,43 +22,7 @@ void manualSettings(){
   calcGain();
 
   autoStartTime = getTeensy3Time();
-  updatePowerDuration();
 
-//// get free space on cards
-//    cDisplay();
-//    display.print("HS1 Init");
-//    display.setTextSize(1);
-//    display.setCursor(0, 16);
-//    display.println("Card Free/Total MB");
-//      
-//      freeMB = 0; //reset
-//
-//      int32_t volFree = sd.vol()->freeClusterCount();
-//      Serial.print("volFree:");
-//      Serial.println(volFree);
-//
-//      float fs = 0.000512 * volFree * sd.vol()->blocksPerCluster();
-//
-//      uint32_t freeSpace = (uint32_t) fs;
-//      uint32_t volumeMB = uint32_t ( 0.000512 * (float) sd.card()->cardSize());
-//
-//      Serial.print("Volume MB ");
-//      Serial.println(volumeMB);
-//      
-//      if (freeSpace < 200) freeMB = 0;
-//      else
-//        freeMB = freeSpace - 200; // take off 200 MB to be safe
-//
-//      Serial.print("Free space (MB): ");
-//      Serial.println((uint32_t) freeMB);
-//      
-//      display.print(freeMB);
-//      display.print("/");
-//      display.println(volumeMB);
-//      display.display();
-//      delay(1000);
-
- 
   LoadScript(); // secret settings accessible from card 1
   calcGain();
   writeEEPROM(); // update EEPROM in case any settings changed from card
@@ -105,6 +69,10 @@ void manualSettings(){
     gainSetting = 4;
     EEPROM.write(15, gainSetting); //byte
   }
+
+  getCardSpace();
+  updatePowerDuration();
+  delay(3000);  // time to read card space
   
   while(startRec==0){
     static int curSetting = noSet;
@@ -242,8 +210,8 @@ void manualSettings(){
         display.print(endMinute);
         break;
     }
-    //displaySettings();
-    displayClock(getTeensy3Time(), displayLine4);
+    updatePowerDuration();
+    displayClock(displayLine6, getTeensy3Time());
     display.display();
     delay(10);
   }

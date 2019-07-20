@@ -1,12 +1,15 @@
 //
-// HS1
+// HS1: High speed audio recorder
 //
 // Loggerhead Instruments
 // c 2019
 // David Mann
 
 // Compile 180 MHz Fastest
-
+// To Do:
+// - sleep test sleep, deepsleep, hibernate
+// - measure current draw
+// - update power settings
 
 #define codeVersion 20190618
 #define MQ 100 // to be used with LHI record queue (modified local version)
@@ -79,11 +82,12 @@ const int vSense = 16;
 #define OLED_RESET -1
 
 #define displayLine1 0
-#define displayLine2 18
-#define displayLine3 36
-#define displayLine4 54
+#define displayLine2 11
+#define displayLine3 22
+#define displayLine4 33
+#define displayLine5 44
+#define displayLine6 57
 Adafruit_FeatherOLED display = Adafruit_FeatherOLED();
-#define BOTTOM 25
 
 
 static uint8_t myID[8];
@@ -180,7 +184,7 @@ int noDC = 0; // 0 = freezeDC offset; 1 = remove DC offset
 // LRCLK 23
 
 // Remember which mode we're doing
-int mode = 0;  // 0=stopped, 1=recording audio, 2=recprding sensors
+int modeHS1 = 0;  // 0=stopped, 1=recording audio, 2=recprding sensors
 time_t startTime;
 time_t stopTime;
 time_t t;
@@ -193,8 +197,8 @@ boolean introPeriod=1;  //flag for introductory period; used for keeping LED on 
 int update_rate = 10;  // rate (Hz) at which interrupt to read sensors
 float imu_srate = 10.0;
 
-#define SAMP_FREQS 10
-int32_t lhi_fsamps[SAMP_FREQS] = {8000, 16000, 32000, 44100, 48000, 96000, 192000, 240000, 320000, 400000};
+#define SAMP_FREQS 9
+int32_t lhi_fsamps[SAMP_FREQS] = {8000, 16000, 32000, 48000, 96000, 192000, 240000, 300000, 350000};
 float audio_srate;
 
 int wakeahead = 5;
@@ -206,7 +210,7 @@ float total_hour_recorded = 0.0;
 long nbufs_per_file;
 boolean settingsChanged = 0;
 
-byte startHour, startMinute, endHour, endMinute; //used in Diel mode
+byte startHour, startMinute, endHour, endMinute; //used in Diel modeHS1
 
 #define MODE_NORMAL 0
 #define MODE_DIEL 1
@@ -218,10 +222,10 @@ long file_count;
 char filename[25];
 char dirname[8];
 int folderMonth;
-//SnoozeBlock snooze_config;
+
 SnoozeAlarm alarm;
-SnoozeAudio snooze_audio;
-SnoozeBlock config_teensy32(snooze_audio, alarm);
+//SnoozeAudio snooze_audio;
+SnoozeBlock config_teensy36(alarm);
 
 // The file where data is recorded
 File frec;
@@ -328,7 +332,7 @@ void setup() {
   AudioMemory(MQ+10);
 
   AudioInit(isf); // this calls Wire.begin() in control_sgtl5000.cpp
-  mode = 0;
+  modeHS1 = 0;
 
   // create first folder to hold data
   folderMonth = -1;  //set to -1 so when first file made will create directory
@@ -344,14 +348,14 @@ void loop() {
   t = getTeensy3Time();
 
   // Standby mode
-  if(mode == 0)
+  if(modeHS1 == 0)
   {
     delay(100);
       
     if(introPeriod){
       cDisplay();
       displaySettings();
-      displayClock(BOTTOM, t);
+      displayClock(displayLine6, t);
       display.display();
     }
       
@@ -376,14 +380,13 @@ void loop() {
 
       displayOff();
 
-      mode = 1;
+      modeHS1 = 1;
       startRecording();
     }
   }
 
-
   // Record mode
-  if (mode == 1) {
+  if (modeHS1 == 1) {
     continueRecording();  // download data  
 
     // Check if UP + DN button pressed
@@ -432,10 +435,6 @@ void loop() {
       else
       {
         stopRecording();
-        if(introPeriod) displayOn();
-
-        if(introPeriod) delay(1000); // time to read display
-        displayOff();
         
         long ss = startTime - getTeensy3Time() - wakeahead;
         if (ss<0) ss=0;
@@ -444,36 +443,44 @@ void loop() {
         snooze_minute = floor(ss/60);
         ss -= snooze_minute * 60;
         snooze_second = ss;
+        if(printDiags > 0){
+          Serial.print("Time: ");
+          Serial.print(getTeensy3Time());
+          Serial.print("  Next: ");
+          Serial.println(startTime);
+          printTime(getTeensy3Time());
+          Serial.print("Snooze HH:MM:SS ");
+          Serial.print(snooze_hour);Serial.print(":");
+          Serial.print(snooze_minute);Serial.print(":");
+          Serial.println(snooze_second);
+          Serial.flush();
+         }
+         
+        // if have enough time, go to sleep
         if((snooze_hour * 3600) + (snooze_minute * 60) + snooze_second >=15){
             digitalWrite(hydroPowPin, LOW); //hydrophone off          
             audio_power_down();
-            
-            if(printDiags > 0){
-              Serial.print("Time: ");
-              Serial.print(getTeensy3Time());
-              Serial.print("  Next: ");
-              Serial.println(startTime);
-              printTime(getTeensy3Time());
-              Serial.print("Snooze HH MM SS ");
-              Serial.print(snooze_hour);
-              Serial.print(snooze_minute);
-              Serial.println(snooze_second);
-            }
+            if(printDiags) Serial.println("Going to sleep");
             delay(100);
 
             alarm.setRtcTimer(snooze_hour, snooze_minute, snooze_second);
-            Snooze.sleep(config_teensy32);
+            int who = Snooze.sleep(config_teensy36);
        
             /// ... Sleeping ....
             
             // Waking up
-            
-           if(printDiags>0) printTime(getTeensy3Time());
+
+           
+           
             digitalWrite(hydroPowPin, HIGH); // hydrophone on 
             AudioInit(isf);
+            if(printDiags>0){
+            printTime(getTeensy3Time());
+            Serial.print("Wake source: "); Serial.println(who);
+           }
          }
         if(introPeriod) displayOn();
-        mode = 0;
+        modeHS1 = 0;
       }
     }
   }
@@ -514,7 +521,6 @@ void continueRecording() {
           queue1.freeBuffer(); 
           queue2.freeBuffer();  // free buffer
       #endif
-
       frec.write(buffer, 512); //audio to .wav file
     }
 }
@@ -560,7 +566,6 @@ void FileInit()
    t = getTeensy3Time();
    
    if (folderMonth != month(t)){
-    if(printDiags > 0) Serial.println("New Folder");
     folderMonth = month(t);
     sprintf(dirname, "%04d-%02d", year(t), folderMonth);
     SdFile::dateTimeCallback(file_date_time);

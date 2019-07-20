@@ -18,10 +18,6 @@ void cDisplay(){
   displayBattery();
   display.setTextColor(WHITE);
   display.setTextSize(1);
-  display.setCursor(30,displayLine3);
-  display.print((int) recDays);
-  display.print("d");
-  
   display.setCursor(0,0);
 }
 
@@ -29,8 +25,8 @@ void displaySettings(){
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(0, displayLine1);
-  if(mode==0) {
-    display.println("SBY");
+  if(modeHS1==0) {
+    display.println("STANDBY");
     display.print(startTime - t);
     display.print("s  ");
     display.print(lhi_fsamps[isf]);
@@ -39,6 +35,7 @@ void displaySettings(){
     else
       display.println(""); // MONO
   }
+  display.setCursor(0, displayLine3);
   display.print("R:");
   display.print(rec_dur);
   display.print("s");
