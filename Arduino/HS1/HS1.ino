@@ -5,13 +5,15 @@
 // c 2019
 // David Mann
 
-// Compile 180 MHz Fastest
+// Compile 180 MHz Faster
+
 // To Do:
 // - sleep test sleep, deepsleep, hibernate
 // - measure current draw
 // - update power settings
+// - test sample rates; make sure keeps recording, and sample rate is correct
 
-#define codeVersion 20190618
+#define codeVersion 20190622
 #define MQ 100 // to be used with LHI record queue (modified local version)
 
 #include "input_i2s.h"
@@ -19,8 +21,6 @@
 #include <SPI.h>
 #include "SdFat.h"
 
-
-#include <Snooze.h>  //using https://github.com/duff2013/Snooze; uncomment line 62 #define USE_HIBERNATE
 #include <TimeLib.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -36,20 +36,13 @@
 //
 
 static boolean printDiags = 1;  // 1: serial print diagnostics; 0: no diagnostics 2=verbose
-boolean imuFlag = 1;
-boolean whistleFlag = 1;  // =1 to run whistle detector
 int moduloSeconds = 10; // round to nearest start time
-#define SENDBINARY 0 // send Iridium message as binary; set to 1
+
 float hydroCalLeft = -180.0;
 float hydroCalRight = -180.0;
 #define FFT1024 1024
 //#define FFT256 256
-#define NBANDS 25  // number of frequency bands to calculate and send. MAX = 25
 
-int bandLow[NBANDS] = {1,2,3,4,5,6,7,9,11,14,18,23,29,36,46,58,73,92,116,146,184,232,292,368,463}; // band low frequencies
-int bandHigh[NBANDS]= {2,3,4,5,6,7,9,11,14,18,23,29,36,46,58,73,92,116,146,184,232,292,368,463,512};
-//int bandLow[NBANDS] = {1,7, 13, 19};
-//int bandHigh[NBANDS]=  {6,13, 19, 128};
 #define NCHAN 1
 #define ONECHAN 1
 //#define TWOCHAN 2
@@ -194,9 +187,6 @@ boolean audioFlag = 1;
 volatile boolean LEDSON = 1;
 boolean introPeriod=1;  //flag for introductory period; used for keeping LED on for a little while
 
-int update_rate = 10;  // rate (Hz) at which interrupt to read sensors
-float imu_srate = 10.0;
-
 #define SAMP_FREQS 9
 int32_t lhi_fsamps[SAMP_FREQS] = {8000, 16000, 32000, 48000, 96000, 192000, 240000, 300000, 350000};
 float audio_srate;
@@ -222,10 +212,6 @@ long file_count;
 char filename[25];
 char dirname[8];
 int folderMonth;
-
-SnoozeAlarm alarm;
-//SnoozeAudio snooze_audio;
-SnoozeBlock config_teensy36(alarm);
 
 // The file where data is recorded
 File frec;
@@ -392,7 +378,7 @@ void loop() {
     // Check if UP + DN button pressed
     if(digitalRead(UP)==0 & digitalRead(DOWN)==0){
       delay(10); // simple deBounce
-      if(digitalRead(STOP)==0){
+      if(digitalRead(UP)==0 & digitalRead(DOWN)==0){
         if(printDiags) Serial.println("Stop");
         stopRecording();
         
@@ -438,33 +424,28 @@ void loop() {
         
         long ss = startTime - getTeensy3Time() - wakeahead;
         if (ss<0) ss=0;
-        snooze_hour = floor(ss/3600);
-        ss -= snooze_hour * 3600;
-        snooze_minute = floor(ss/60);
-        ss -= snooze_minute * 60;
-        snooze_second = ss;
+//        snooze_hour = floor(ss/3600);
+//        ss -= snooze_hour * 3600;
+//        snooze_minute = floor(ss/60);
+//        ss -= snooze_minute * 60;
+//        snooze_second = ss;
         if(printDiags > 0){
           Serial.print("Time: ");
           Serial.print(getTeensy3Time());
           Serial.print("  Next: ");
           Serial.println(startTime);
           printTime(getTeensy3Time());
-          Serial.print("Snooze HH:MM:SS ");
-          Serial.print(snooze_hour);Serial.print(":");
-          Serial.print(snooze_minute);Serial.print(":");
-          Serial.println(snooze_second);
           Serial.flush();
          }
          
         // if have enough time, go to sleep
-        if((snooze_hour * 3600) + (snooze_minute * 60) + snooze_second >=15){
+        if(ss >=15){
             digitalWrite(hydroPowPin, LOW); //hydrophone off          
             audio_power_down();
             if(printDiags) Serial.println("Going to sleep");
             delay(100);
 
-            alarm.setRtcTimer(snooze_hour, snooze_minute, snooze_second);
-            int who = Snooze.sleep(config_teensy36);
+
        
             /// ... Sleeping ....
             
@@ -476,7 +457,6 @@ void loop() {
             AudioInit(isf);
             if(printDiags>0){
             printTime(getTeensy3Time());
-            Serial.print("Wake source: "); Serial.println(who);
            }
          }
         if(introPeriod) displayOn();
@@ -551,7 +531,6 @@ void stopRecording() {
 
   AudioMemoryUsageMaxReset();
   frec.close();
-  delay(100);
 }
 
 void logFileHeader(){
