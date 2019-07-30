@@ -6,11 +6,9 @@
 // David Mann
 
 // Compile 180 MHz Faster
+// current draw: about 80 mA at 350 kHz. 78 mA at 240 kHz
 
 // To Do:
-// - sleep test sleep, deepsleep, hibernate
-// - measure current draw
-// - update power settings
 // - test sample rates; make sure keeps recording, and sample rate is correct
 
 #define codeVersion 20190622

@@ -1,7 +1,7 @@
-float mAmpRec = 50.0;
-float mAmpSleep = 5.0;
+float mAmpRec = 80.0;
+float mAmpSleep = 80.0;
 
-float mAhPerBat = 4500.0; // assume 4.5Ah per LiPo; rated at 5 Ah
+float mAhPerBat = 12000.0; // assume 4.5Ah per LiPo; rated at 5 Ah
 
 uint32_t freeMB;
 uint32_t filesPerCard;
