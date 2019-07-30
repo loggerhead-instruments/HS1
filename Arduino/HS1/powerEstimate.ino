@@ -54,17 +54,17 @@ void updatePowerDuration(){
   totalRecSeconds += (filesPerCard * rec_dur);
   float totalSecondsMemory = totalRecSeconds / recFraction;
 
-  if(printDiags){
-    Serial.print("Free MB: "); Serial.println(freeMB);
-    Serial.print("File MB: "); Serial.println(fileMB);
-    Serial.print("FilesPerCard: "); Serial.println(filesPerCard);
-    Serial.print("Memory Dur (s): "); Serial.println(totalSecondsMemory);
-    Serial.print("Rec dur:"); Serial.println(rec_dur);
-    Serial.print("Sleep dur:"); Serial.println(rec_int);
-    Serial.print("Rec fraction:"); Serial.println(recFraction);
-    Serial.print("Sleep fraction:"); Serial.println(sleepFraction);
-    Serial.print("Avg power mA:"); Serial.println(avgCurrentDraw);
-  }
+//  if(printDiags){
+//    Serial.print("Free MB: "); Serial.println(freeMB);
+//    Serial.print("File MB: "); Serial.println(fileMB);
+//    Serial.print("FilesPerCard: "); Serial.println(filesPerCard);
+//    Serial.print("Memory Dur (s): "); Serial.println(totalSecondsMemory);
+//    Serial.print("Rec dur:"); Serial.println(rec_dur);
+//    Serial.print("Sleep dur:"); Serial.println(rec_int);
+//    Serial.print("Rec fraction:"); Serial.println(recFraction);
+//    Serial.print("Sleep fraction:"); Serial.println(sleepFraction);
+//    Serial.print("Avg power mA:"); Serial.println(avgCurrentDraw);
+//  }
 
   
   if(powerSeconds < totalSecondsMemory){
@@ -81,8 +81,8 @@ void updatePowerDuration(){
     display.print(totalSecondsMemory / 86400);
     display.print("d");
     recDays = totalSecondsMemory / 86400.0;
-    Serial.println("Memory Limit: ");
+ //   Serial.println("Memory Limit: ");
   }
-  Serial.println(recDays);
+ // Serial.println(recDays);
 }
 

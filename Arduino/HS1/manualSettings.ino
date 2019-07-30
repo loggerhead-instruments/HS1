@@ -170,7 +170,8 @@ void manualSettings(){
         break;
       case setFsamp:
         isf = updateVal(isf, 0, SAMP_FREQS-1);
-        display.printf("SF: %.1f",lhi_fsamps[isf]/1000.0f);
+        display.print("SF:");
+        display.println(lhi_fsamps[isf]/1000.0f);
         break;
       case setMode:
         display.print("Mode:");
