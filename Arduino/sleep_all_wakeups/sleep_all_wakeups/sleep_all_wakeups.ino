@@ -9,37 +9,49 @@
  Touch interface does not work in sleep
  mode.
  ****************************************/
-#include <Snooze.h>
-// Load drivers
-//SnoozeDigital digital;
-//SnoozeCompare compare;
-//SnoozeTimer timer;
-SnoozeAlarm  alarm;
-// configures the lc's 5v data buffer (OUTPUT, LOW) for low power
-Snoozelc5vBuffer  lc5vBuffer;
-/***********************************************************
- Teensy 3.6/LC can't use Timer Driver with either Touch or
- Compare Drivers and Touch can't be used with Compare.
- 
- Teensy 3.x/LC touch interface does not work with sleep.
- 
- Teensy LC does not have a rtc so Alarm driver can't be
- used as of yet.
- 
- Teensy 3.2 can use any Core Drivers together.
- ***********************************************************/
-#if defined(__MK66FX1M0__)
-SnoozeBlock config_teensy36(alarm);
-#endif
+
+#include <TimeLib.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <Adafruit_FeatherOLED.h>
+#include <EEPROM.h>
+
+
+#define OLED_RESET -1
+
+#define displayLine1 0
+#define displayLine2 11
+#define displayLine3 22
+#define displayLine4 33
+#define displayLine5 44
+#define displayLine6 57
+Adafruit_FeatherOLED display = Adafruit_FeatherOLED();
+
+
+
+int modeHS1 = 0;// 0=stopped, 1=recording audio, 2=recording sensors
+
+const int hydroPowPin = 2;
 
 void setup() {
-  
+
+  pinMode(hydroPowPin, OUTPUT);
+  digitalWrite(hydroPowPin, LOW);
     pinMode(LED_BUILTIN, OUTPUT);
     #if defined(__MK66FX1M0__)
       digitalWrite(LED_BUILTIN, HIGH);
       delay(100);
       digitalWrite(LED_BUILTIN, LOW);
     #endif
+
+    Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, I2C_RATE_400);
+    Wire.setDefaultTimeout(10000);
+    rtcSetup();
+    displayOn();
+    cDisplay();
+    display.println("Loggerhead");
+    display.println(RTC_TSR);
+    display.display();
     /********************************************************
 
     
@@ -48,113 +60,38 @@ void setup() {
      
      Set RTC alarm wake up in (hours, minutes, seconds).
      ********************************************************/
-    alarm.setRtcTimer(0, 0, 20);// hour, min, sec
+    //alarm.setRtcTimer(0, 0, 20);// hour, min, sec
     
     /********************************************************
      Set Low Power Timer wake up in milliseconds.
      ********************************************************/
- //   timer.setTimer(5000);// milliseconds
+    //timer.setTimer(5000);// milliseconds
+
+   
+    delay(5000);
     
-    /********************************************************
-    In sleep the Compare module works by setting the
-    internal 6 bit DAC to a volatge threshold and monitors
-    the pin volatge for a voltage crossing. The internal
-    DAC uses a 64 tap resistor ladder network supplied by
-    VOUT33 at 0.0515625v per tap (VOUT33/64). Thus the
-    possible threshold voltages are 0.0515625*(0-64). Only
-    one compare pin can be used at a time.
 
-    parameter "type": LOW & FALLING are the same and have no effect.
-    parameter "type": HIGH & RISING are the same and have no effect.
-
-    Teensy 3.x
-    Compare pins: 11,9,4
-
-    Teensy LC
-    Compare pins: 11
-     ********************************************************/
-    // trigger at threshold values greater than 1.65v
-    //compare.pinMode(11, HIGH, 1.65);//pin, type, threshold(v)
-    // trigger at threshold values less than 1.65v
-  //  compare.pinMode(11, LOW, 1.65);//pin, type, threshold(v)
 }
 
 void loop() {
-    int who;
-    /********************************************************
-     feed the sleep function its wakeup parameters. Then go
-     to deepSleep.
-     ********************************************************/
-//#if defined(__MK66FX1M0__)
-//    who = Snooze.sleep( config_teensy36 );// return module that woke processor
-//#elif defined(__MK64FX512__)
-//    who = Snooze.sleep( config_teensy35 );// return module that woke processor
-//#elif defined(__MK20DX256__)
-//    who = Snooze.sleep( config_teensy32 );// return module that woke processor
-//#elif defined(__MK20DX128__)
-//    who = Snooze.sleep( config_teensy30 );// return module that woke processor
-//#elif defined(__MKL26Z64__)
-//    who = Snooze.sleep( config_teensyLC );// return module that woke processor
-//#endif
 
-  who = Snooze.sleep( config_teensy36 );// return module that woke processor
-
+  cDisplay();
+  
+  display.println("Going to sleep");
+  display.println(RTC_TSR);
+  display.display();
+  
+  setWakeupCallandSleep(10);
 
   digitalWrite(LED_BUILTIN, HIGH);
   delay(1000);
   digitalWrite(LED_BUILTIN, LOW);
   delay(50);
+
+  cDisplay();
   
-    if (who == -1){
-      for (int i = 0; i < 30; i++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(20);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(50);
-        }
-    }
-    if (who == 21) { // pin wakeup source is its pin value
-        for (int i = 0; i < 1; i++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(200);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(200);
-        }
-    }
-    
-    if (who == 22) { // pin wakeup source is its pin value
-        for (int i = 0; i < 2; i++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(200);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(200);
-        }
-    }
-    
-    if (who == 34) { // compare wakeup value
-        for (int i = 0; i < 3; i++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(200);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(200);
-        }
-    }
-    
-    if (who == 35) { // rtc wakeup value
-        for (int i = 0; i < 4; i++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(200);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(200);
-        }
-    }
-    
-    if (who == 36) { // lptmr wakeup value
-        for (int i = 0; i < 5; i++) {
-            digitalWrite(LED_BUILTIN, HIGH);
-            delay(200);
-            digitalWrite(LED_BUILTIN, LOW);
-            delay(200);
-        }
-    }
+  display.println("Awake");
+  display.display();
+  delay(10000);
+  
 }

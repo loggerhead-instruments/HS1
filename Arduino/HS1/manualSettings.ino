@@ -18,8 +18,6 @@
 
 void manualSettings(){
   boolean startRec = 0, startUp, startDown;
-  readEEPROM();
-  calcGain();
 
   autoStartTime = getTeensy3Time();
 

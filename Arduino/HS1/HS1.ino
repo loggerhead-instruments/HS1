@@ -34,7 +34,8 @@
 //
 
 static boolean printDiags = 1;  // 1: serial print diagnostics; 0: no diagnostics 2=verbose
-int moduloSeconds = 10; // round to nearest start time
+int moduloSeconds = 5; // round to nearest start time
+int wakeahead = 5;   // want this to be about the same as moduloSeconds
 
 float hydroCalLeft = -180.0;
 float hydroCalRight = -180.0;
@@ -64,6 +65,8 @@ const int DOWN = 3;
 const int SELECT = 8;
 const int hydroPowPin = 2;
 const int vSense = 16; 
+#define menuStatus 31
+#define menuReset 32
 
 
 #define CPU_RESTART_ADDR (uint32_t *)0xE000ED0C
@@ -175,7 +178,7 @@ int noDC = 0; // 0 = freezeDC offset; 1 = remove DC offset
 // LRCLK 23
 
 // Remember which mode we're doing
-int modeHS1 = 0;  // 0=stopped, 1=recording audio, 2=recprding sensors
+int modeHS1 = 0;  // 0=stopped, 1=recording audio, 2=recording sensors
 time_t startTime;
 time_t stopTime;
 time_t t;
@@ -189,7 +192,7 @@ boolean introPeriod=1;  //flag for introductory period; used for keeping LED on 
 int32_t lhi_fsamps[SAMP_FREQS] = {8000, 16000, 32000, 48000, 96000, 192000, 240000, 300000, 350000};
 float audio_srate;
 
-int wakeahead = 5;
+
 int snooze_hour;
 int snooze_minute;
 int snooze_second;
@@ -207,9 +210,7 @@ int recMode = MODE_NORMAL;
 int nBatPacks = 8;
 
 long file_count;
-char filename[25];
-char dirname[8];
-int folderMonth;
+char filename[50];
 
 // The file where data is recorded
 File frec;
@@ -257,6 +258,8 @@ void setup() {
   pinMode(UP, INPUT_PULLUP);
   pinMode(DOWN, INPUT_PULLUP);
   pinMode(SELECT, INPUT_PULLUP);
+  pinMode(menuStatus, INPUT);
+  pinMode(menuReset, OUTPUT);
   
   readVoltage();
   displayOn();
@@ -284,8 +287,11 @@ void setup() {
   }
   // make sd the current volume.
     sd.chvol();  
-    
-  manualSettings();
+
+  readEEPROM();
+  calcGain();
+  if(digitalRead(menuStatus)==1) manualSettings();  // only get manual settings after power on
+  digitalWrite(menuReset, HIGH); // reset flip-flop so only runs menu once
   logFileHeader();
 
   digitalWrite(hydroPowPin, HIGH);
@@ -301,8 +307,8 @@ void setup() {
 
   t = getTeensy3Time();
   startTime = t;
-  startTime -= startTime % moduloSeconds;  //modulo to nearest modulo seconds
-  startTime += moduloSeconds; //move forward
+   startTime -= startTime % moduloSeconds;  //modulo to nearest modulo seconds
+   startTime += moduloSeconds; //move forward
   stopTime = startTime + rec_dur;  // this will be set on start of recording
 
   audio_srate = lhi_fsamps[isf];
@@ -318,8 +324,6 @@ void setup() {
   AudioInit(isf); // this calls Wire.begin() in control_sgtl5000.cpp
   modeHS1 = 0;
 
-  // create first folder to hold data
-  folderMonth = -1;  //set to -1 so when first file made will create directory
 }
 
 //
@@ -333,9 +337,7 @@ void loop() {
 
   // Standby mode
   if(modeHS1 == 0)
-  {
-    delay(100);
-      
+  {   
     if(introPeriod){
       cDisplay();
       displaySettings();
@@ -438,14 +440,15 @@ void loop() {
          
         // if have enough time, go to sleep
         if(ss >=15){
-            digitalWrite(hydroPowPin, LOW); //hydrophone off          
             audio_power_down();
+            digitalWrite(hydroPowPin, LOW); //hydrophone and audio off 
             if(printDiags) Serial.println("Going to sleep");
             delay(100);
 
 
        
             /// ... Sleeping ....
+            setWakeupCallandSleep(ss); // will reset on wakeup
             
             // Waking up
 
@@ -542,15 +545,8 @@ void FileInit()
 {
    t = getTeensy3Time();
    
-   if (folderMonth != month(t)){
-    folderMonth = month(t);
-    sprintf(dirname, "%04d-%02d", year(t), folderMonth);
-    SdFile::dateTimeCallback(file_date_time);
-    sd.mkdir(dirname);
-   }
-   
    // open file 
-   sprintf(filename,"%s/%04d%02d%02dT%02d%02d%02d.wav", dirname, year(t), month(t), day(t), hour(t), minute(t), second(t));  //filename is YYYYMMDDTHHMMSS
+   sprintf(filename,"%04d%02d%02dT%02d%02d%02d.wav", year(t), month(t), day(t), hour(t), minute(t), second(t));  //filename is YYYYMMDDTHHMMSS
 
    // log file
    SdFile::dateTimeCallback(file_date_time);
