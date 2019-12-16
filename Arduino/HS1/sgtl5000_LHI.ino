@@ -414,6 +414,66 @@
 #define DAP_AVC_CTRL        0x0124 //audio volume control
 // 0  Disable
 
+
+bool audio_enable(int fs_mode)
+{ 
+  int sgtl_mode=fs_mode-2;
+  if(sgtl_mode>3) sgtl_mode=3;
+  if(sgtl_mode<0) sgtl_mode=0;
+  
+//  muted = true;
+//  Serial.print("audio ID = ");
+//  delay(5);
+//  unsigned int n = read(CHIP_ID);
+//  Serial.println(n, HEX);
+
+  chipWrite(CHIP_ANA_POWER, 0x4060);  // VDDD is externally driven with 1.8V
+  chipWrite(CHIP_LINREG_CTRL, 0x006C);  // VDDA & VDDIO both over 3.1V
+  
+  chipWrite(CHIP_REF_CTRL, 0x01F0); // VAG=1.575, normal ramp, no bias current;
+  //chipWrite(CHIP_REF_CTRL, 0x01F2); // VAG=1.575, normal ramp, +12.5% bias current
+    
+  chipWrite(CHIP_MIC_CTRL, 0x00); // Mic bias off; Mic Amplifier gain 0 dB
+
+  chipWrite(CHIP_LINE_OUT_CTRL, 0x0F22); // LO_VAGCNTRL=1.65V, OUT_CURRENT=0.54mA
+  chipWrite(CHIP_SHORT_CTRL, 0x4446);  // allow up to 125mA
+  chipWrite(CHIP_ANA_CTRL, 0x0137);  // enable zero cross detectors
+  
+  audio_power_up();
+  
+  delay(400);
+  //chipWrite(CHIP_LINE_OUT_VOL, 0x1D1D); // default approx 1.3 volts peak-to-peak
+  chipWrite(CHIP_LINE_OUT_VOL, 0x1919); // default approx 1.3 volts peak-to-peak
+  //
+  chipWrite(CHIP_CLK_CTRL, (sgtl_mode<<2));  // 256*Fs| sgtl_mode = 0:32 kHz; 1:44.1 kHz; 2:48 kHz; 3:96 kHz
+  chipWrite(CHIP_I2S_CTRL, 0x0130); // SCLK=32*Fs, 16bit, I2S format
+  
+  // default signal routing is ok?
+  //chipWrite(CHIP_SSS_CTRL, 0x0010); // ADC->I2S, I2S->DAC
+  chipWrite(CHIP_SSS_CTRL, 0x0000); // ADC->I2S, ADC->DAC
+
+  chipWrite(CHIP_ADCDAC_CTRL, 0x0008); // DAC mute right; DAC left unmute; ADC HPF normal operation
+  
+  
+  chipWrite(CHIP_DAC_VOL, 0xFF3C); // dac mute right; left 0 dB
+  chipWrite(CHIP_ANA_HP_CTRL, 0x7F7F); // set headphone volume (lowest level)
+  //chipWrite(CHIP_ANA_CTRL, 0x0036);  // enable zero cross detectors; line input
+
+  chipWrite(DAP_AVC_CTRL, 0x0000); //no automatic volume control
+  //chipWrite(CHIP_ANA_CTRL, 0x0114);  // lineout mute, headphone mute, no zero cross detectors, line input selected
+  chipWrite(CHIP_ANA_CTRL, 0x0014);  // lineout unmute, headphone mute, no zero cross detectors, line input selected
+  chipWrite(CHIP_MIC_CTRL, 0x0000); //microphone off
+  //chipWrite(CHIP_ANA_ADC_CTRL, 0x0000); // 0 dB gain
+  //chipWrite(CHIP_ANA_ADC_CTRL, 0x0100); // -6 dB gain
+  //Serial.print("Set gain:");
+  //Serial.println(gainSetting);
+  chipWrite(CHIP_ANA_ADC_CTRL, gainSetting); // set left gain
+  
+   return true;
+}
+
+
+/*
 bool audio_enable(int fs_mode)
 { int sgtl_mode=fs_mode-2;
   if(sgtl_mode>3) sgtl_mode=3;
@@ -429,7 +489,8 @@ bool audio_enable(int fs_mode)
   chipWrite(CHIP_LINREG_CTRL, 0x006C);  // VDDA & VDDIO both over 3.1V
   chipWrite(CHIP_REF_CTRL, 0x01F0); // VAG=1.575, normal ramp, normal bias current; less pronounced noise in quiet
  // chipWrite(CHIP_REF_CTRL, 0x01F2); // VAG=1.575, normal ramp, +12.5% bias current; more pronounced noise in quiet
- // chipWrite(CHIP_REF_CTRL, 0x01F4); // VAG=1.575, normal ramp, -12.5% bias current
+ //chipWrite(CHIP_REF_CTRL, 0x01F4); // VAG=1.575, normal ramp, -12.5% bias current
+
 
   chipWrite(CHIP_LINE_OUT_CTRL, 0x0F22); // LO_VAGCNTRL=1.65V, OUT_CURRENT=0.54mA
   
@@ -471,7 +532,7 @@ bool audio_enable(int fs_mode)
   
    return true;
 }
-
+*/
 void audio_freeze_adc_hp(){
    chipWrite(CHIP_ADCDAC_CTRL, 0x000A); // DAC mute right; DAC left unmute; ADC high pass filter frozen; ADC HPF normal operation
 }
@@ -539,7 +600,7 @@ void I2S_modification(uint32_t fsamp, uint16_t nbits)
   if((F_CPU==96000000) || (F_CPU==48000000) || (F_CPU==24000000)) fcpu=96000000; 
   float fs = (fcpu * (iscl[0]+1.0f)) / (iscl[1]+1l) / 2 / (iscl[2]+1l) / (2l*nbits);
 
-  Serial.printf("%d %d: %d %d %d %d %d %d\n\r",
+  if(printDiags) Serial.printf("%d %d: %d %d %d %d %d %d\n\r",
         F_CPU, fcpu, fsamp, (int)fs, nbits,iscl[0]+1,iscl[1]+1,iscl[2]+1);
   
 
@@ -560,4 +621,3 @@ void I2S_modification(uint32_t fsamp, uint16_t nbits)
   //restart I2S
   I2S0_RCSR |= I2S_RCSR_RE | I2S_RCSR_BCE;
 }
-

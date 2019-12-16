@@ -73,7 +73,6 @@ void updatePowerDuration(){
     display.print(powerSeconds / 86400);
     display.print("d");
     recDays = powerSeconds / 86400.0;
-    Serial.println("Battery limit: ");
   }
   else{
     display.setCursor(0, displayLine5);
@@ -81,8 +80,5 @@ void updatePowerDuration(){
     display.print(totalSecondsMemory / 86400);
     display.print("d");
     recDays = totalSecondsMemory / 86400.0;
- //   Serial.println("Memory Limit: ");
   }
- // Serial.println(recDays);
 }
-
